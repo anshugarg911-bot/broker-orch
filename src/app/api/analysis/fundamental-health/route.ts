@@ -3,12 +3,18 @@ import { getAnthropicKey } from '@/lib/api-keys'
 import { connectDB } from '@/lib/db'
 import { AnalysisCache } from '@/models/AnalysisCache'
 import { mcpClient } from '@/lib/mcp-client'
+import { getAnalysisBroker, getQuoteBroker } from '@/lib/broker-priority'
 
 async function fetchLiveData(symbol: string, broker?: string) {
   try {
+    const [analysisBroker, quoteBroker] = await Promise.all([
+      getAnalysisBroker(broker),
+      getQuoteBroker(broker),
+    ])
+
     const [quoteResult, technicalResult] = await Promise.allSettled([
-      mcpClient.getQuote([symbol], broker),
-      mcpClient.getTechnicalIndicators(symbol, ['RSI', 'MACD', 'BOLLINGER'], broker),
+      mcpClient.getQuote([symbol], quoteBroker),
+      mcpClient.getTechnicalIndicators(symbol, ['RSI', 'MACD', 'BOLLINGER'], analysisBroker),
     ])
     return {
       quote: quoteResult.status === 'fulfilled' ? quoteResult.value : null,

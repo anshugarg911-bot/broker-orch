@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { mcpClient } from '@/lib/mcp-client'
 import { getAnthropicKey } from '@/lib/api-keys'
+import { getAnalysisBroker, getQuoteBroker } from '@/lib/broker-priority'
 import { connectDB } from '@/lib/db'
 import { AnalysisCache } from '@/models/AnalysisCache'
 import type { AnalystPersona } from '@/types/holdings-analysis'
@@ -97,12 +98,17 @@ export async function POST(request: Request) {
     const personas: AnalystPersona[] = ['warren_buffett', 'michael_burry', 'technical_analyst', 'fundamental_analyst']
     const allSignals: unknown[] = []
 
-    // Fetch live data from MCP to ground the analysis
+    // Fetch live data using best available brokers
     let liveDataContext = ''
     try {
+      const [analysisBroker, quoteBroker] = await Promise.all([
+        getAnalysisBroker(body.broker),
+        getQuoteBroker(body.broker),
+      ])
+
       const [quoteResult, technicalResult] = await Promise.allSettled([
-        mcpClient.getQuote([body.symbol], body.broker),
-        mcpClient.getTechnicalIndicators(body.symbol, ['RSI', 'MACD', 'BOLLINGER'], body.broker),
+        mcpClient.getQuote([body.symbol], quoteBroker),
+        mcpClient.getTechnicalIndicators(body.symbol, ['RSI', 'MACD', 'BOLLINGER'], analysisBroker),
       ])
       if (quoteResult.status === 'fulfilled' && quoteResult.value) {
         liveDataContext += `\nLive Market Data:\n${JSON.stringify(quoteResult.value, null, 2)}`

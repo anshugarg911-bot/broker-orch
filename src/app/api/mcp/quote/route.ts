@@ -1,10 +1,11 @@
 import { mcpClient } from '@/lib/mcp-client'
+import { getQuoteBroker } from '@/lib/broker-priority'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const symbolsParam = searchParams.get('symbols')
-    const broker = searchParams.get('broker') || undefined
+    const requestedBroker = searchParams.get('broker') || undefined
 
     if (!symbolsParam) {
       return Response.json(
@@ -12,6 +13,9 @@ export async function GET(request: Request) {
         { status: 400 }
       )
     }
+
+    // Use best available broker for quotes (Dhan → Kite, Groww has no quotes)
+    const broker = await getQuoteBroker(requestedBroker)
 
     const symbols = symbolsParam.split(',').map((s) => s.trim()).filter(Boolean)
     const result = await mcpClient.getQuote(symbols, broker)

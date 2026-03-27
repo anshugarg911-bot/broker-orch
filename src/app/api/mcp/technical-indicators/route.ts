@@ -1,4 +1,5 @@
 import { mcpClient } from '@/lib/mcp-client'
+import { getAnalysisBroker } from '@/lib/broker-priority'
 import type { TechnicalIndicators } from '@/types/holdings-analysis'
 
 function normalizeIndicators(raw: Record<string, unknown>, lastPrice: number): TechnicalIndicators {
@@ -87,7 +88,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const symbol = searchParams.get('symbol')
-    const broker = searchParams.get('broker') || undefined
+    const requestedBroker = searchParams.get('broker') || undefined
     const lastPrice = parseFloat(searchParams.get('lastPrice') || '0')
 
     if (!symbol) {
@@ -97,11 +98,30 @@ export async function GET(request: Request) {
       )
     }
 
-    const result = await mcpClient.callTool<Record<string, unknown>>('get_technical_indicators', {
-      symbol,
-      indicators: ['RSI', 'MACD', 'BOLLINGER'],
-      broker,
-    })
+    // Use best available broker for analysis (Dhan → Groww, skip Kite)
+    const broker = await getAnalysisBroker(requestedBroker)
+
+    let result: Record<string, unknown> | null = null
+
+    if (broker) {
+      try {
+        result = await mcpClient.callTool<Record<string, unknown>>('get_technical_indicators', {
+          symbol,
+          indicators: ['RSI', 'MACD', 'BOLLINGER'],
+          broker,
+        })
+      } catch {
+        // Primary broker failed, try fallback
+      }
+    }
+
+    // Fallback: try without specifying broker (uses active broker)
+    if (!result) {
+      result = await mcpClient.callTool<Record<string, unknown>>('get_technical_indicators', {
+        symbol,
+        indicators: ['RSI', 'MACD', 'BOLLINGER'],
+      })
+    }
 
     const data = result?.data ?? result
     const indicators = normalizeIndicators(
