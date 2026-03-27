@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx *)",
+      "Bash(node *)",
+      "Bash(git *)",
+      "Bash(ls *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)"
+    ],
+    "deny": []
+  },
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "Review what was done in this session for the broker-orch project. If any new patterns, conventions, or reusable knowledge emerged (e.g., new broker integration patterns, MCP bridge patterns, deployment steps, debugging techniques), update the relevant files in .claude/rules/, .claude/skills/, or .claude/agents/. Only update if there is genuinely new, project-specific knowledge — do not add duplicates. Keep files concise and actionable.",
+            "timeout": 60,
+            "statusMessage": "Updating broker-orch skills..."
+          }
+        ]
+      }
+    ]
+  }
+}
